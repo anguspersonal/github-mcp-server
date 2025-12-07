@@ -1,5 +1,11 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/github/github-mcp-server)](https://goreportcard.com/report/github.com/github/github-mcp-server)
 
+# Not to Self
+
+Hi Angus, I cloned this repo from github.com/github/github-mcp-server on 2025-12-07T17:45:36Z.
+This is a fork of the original repo, and I will be making changes to it.
+It's to enable having a MCP server with which I can run my own AI agents.
+
 # GitHub MCP Server
 
 The GitHub MCP Server connects AI tools directly to GitHub's platform. This gives AI agents, assistants, and chatbots the ability to read repositories and code files, manage issues and PRs, analyze code, and automate workflows. All through natural language interactions.
