@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/github/github-mcp-server/internal/profiler"
 	buffer "github.com/github/github-mcp-server/pkg/buffer"
 	ghErrors "github.com/github/github-mcp-server/pkg/errors"
 	"github.com/github/github-mcp-server/pkg/translations"
@@ -802,9 +801,6 @@ func getJobLogData(ctx context.Context, client *github.Client, owner, repo strin
 }
 
 func downloadLogContent(ctx context.Context, logURL string, tailLines int, maxLines int) (string, int, *http.Response, error) {
-	prof := profiler.New(nil, profiler.IsProfilingEnabled())
-	finish := prof.Start(ctx, "log_buffer_processing")
-
 	httpResp, err := http.Get(logURL) //nolint:gosec
 	if err != nil {
 		return "", 0, httpResp, fmt.Errorf("failed to download logs: %w", err)
@@ -830,8 +826,6 @@ func downloadLogContent(ctx context.Context, logURL string, tailLines int, maxLi
 		lines = lines[len(lines)-tailLines:]
 	}
 	finalResult := strings.Join(lines, "\n")
-
-	_ = finish(len(lines), int64(len(finalResult)))
 
 	return finalResult, totalLines, httpResp, nil
 }

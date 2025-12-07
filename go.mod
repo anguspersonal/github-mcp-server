@@ -6,6 +6,7 @@ require (
 	github.com/google/go-github/v79 v79.0.0
 	github.com/google/jsonschema-go v0.3.0
 	github.com/josephburnett/jd v1.9.2
+	github.com/leanovate/gopter v0.2.9
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/migueleliasweb/go-github-mock v1.3.0
 	github.com/muesli/cache2go v0.0.0-20221011235721-518229cd8021

@@ -14,6 +14,7 @@ import (
     "errors"
     "fmt"
     "io"
+    "log"
     "net/http"
     "os"
     "strconv"
@@ -70,6 +71,7 @@ type InstallationTokenStore struct {
     privateKey *rsa.PrivateKey
     mapping    map[string]string // MCP token -> mapping value (installation:<id>)
     apiBase    string
+    logger     *log.Logger
 
     mu    sync.Mutex
     cache map[int64]*cachedToken // installationID -> token
@@ -90,11 +92,16 @@ func NewInstallationTokenStore(appID int64, privateKeyPEM []byte, mapping map[st
     if !strings.HasSuffix(apiBase, "/") {
         apiBase = apiBase + "/"
     }
+    
+    logger := log.New(os.Stderr, "[InstallationTokenStore] ", log.LstdFlags)
+    logger.Printf("Initialized with App ID: %d, API Base: %s, Mappings: %d", appID, apiBase, len(mapping))
+    
     return &InstallationTokenStore{
         appID:      appID,
         privateKey: pk,
         mapping:    mapping,
         apiBase:    apiBase,
+        logger:     logger,
         cache:      map[int64]*cachedToken{},
     }, nil
 }
@@ -135,12 +142,14 @@ func parseRSAPrivateKeyFromPEM(pemBytes []byte) (*rsa.PrivateKey, error) {
 func (s *InstallationTokenStore) GetGitHubToken(mcpToken string) (string, bool) {
     v, ok := s.mapping[mcpToken]
     if !ok {
+        s.logger.Printf("Token resolution failed: MCP token not found in mapping")
         return "", false
     }
     if strings.HasPrefix(v, "installation:") {
         idStr := strings.TrimPrefix(v, "installation:")
         id, err := strconv.ParseInt(idStr, 10, 64)
         if err != nil {
+            s.logger.Printf("Token resolution failed: invalid installation ID format: %s", idStr)
             return "", false
         }
         // Check cache
@@ -148,30 +157,40 @@ func (s *InstallationTokenStore) GetGitHubToken(mcpToken string) (string, bool) 
         if ct, ok := s.cache[id]; ok && time.Until(ct.expiry) > time.Minute {
             token := ct.token
             s.mu.Unlock()
+            s.logger.Printf("Token cache hit for installation ID: %d (expires in %v)", id, time.Until(ct.expiry).Round(time.Second))
             return token, true
         }
         s.mu.Unlock()
 
+        s.logger.Printf("Token cache miss for installation ID: %d, minting new token", id)
         // Need to mint a new installation token
         tok, exp, err := s.createInstallationToken(id)
         if err != nil {
+            s.logger.Printf("Failed to mint installation token for ID %d: %v", id, err)
             return "", false
         }
         s.mu.Lock()
         s.cache[id] = &cachedToken{token: tok, expiry: exp}
         s.mu.Unlock()
+        s.logger.Printf("Successfully minted and cached token for installation ID: %d (expires at %v)", id, exp.Format(time.RFC3339))
         return tok, true
     }
 
     // If mapping isn't installation:, treat it as a direct token (compat)
+    s.logger.Printf("Token resolution: using direct token mapping (non-installation)")
     return v, true
 }
 
 func (s *InstallationTokenStore) createInstallationToken(installationID int64) (string, time.Time, error) {
+    s.logger.Printf("Creating installation token for installation ID: %d", installationID)
+    
     jwt, err := s.createAppJWT()
     if err != nil {
+        s.logger.Printf("JWT creation failed for installation ID %d: %v", installationID, err)
         return "", time.Time{}, fmt.Errorf("failed to create app jwt: %w", err)
     }
+    s.logger.Printf("Successfully created JWT for installation ID: %d", installationID)
+    
     url := fmt.Sprintf("%sapp/installations/%d/access_tokens", strings.TrimRight(s.apiBase, "/"), installationID)
     req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader([]byte("{}")))
     if err != nil {
@@ -184,11 +203,13 @@ func (s *InstallationTokenStore) createInstallationToken(installationID int64) (
     client := &http.Client{Timeout: 10 * time.Second}
     resp, err := client.Do(req)
     if err != nil {
+        s.logger.Printf("HTTP request failed for installation ID %d: %v", installationID, err)
         return "", time.Time{}, err
     }
     defer func() { _ = resp.Body.Close() }()
     if resp.StatusCode < 200 || resp.StatusCode >= 300 {
         body, _ := io.ReadAll(resp.Body)
+        s.logger.Printf("GitHub API returned error status %d for installation ID %d: %s", resp.StatusCode, installationID, string(body))
         return "", time.Time{}, fmt.Errorf("unexpected status creating installation token: %d: %s", resp.StatusCode, string(body))
     }
     var out struct {
@@ -196,15 +217,18 @@ func (s *InstallationTokenStore) createInstallationToken(installationID int64) (
         ExpiresAt string `json:"expires_at"`
     }
     if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+        s.logger.Printf("Failed to decode token response for installation ID %d: %v", installationID, err)
         return "", time.Time{}, fmt.Errorf("failed to decode installation token response: %w", err)
     }
     exp, err := time.Parse(time.RFC3339, out.ExpiresAt)
     if err != nil {
+        s.logger.Printf("Failed to parse expiry time for installation ID %d, using default 1 hour: %v", installationID, err)
         // try alternative parse
         exp = time.Now().Add(1 * time.Hour)
     }
     // subtract a small buffer
     expiry := exp.Add(-1 * time.Minute)
+    s.logger.Printf("Installation token created successfully for ID %d, expires at: %v", installationID, expiry.Format(time.RFC3339))
     return out.Token, expiry, nil
 }
 
@@ -229,9 +253,11 @@ func (s *InstallationTokenStore) createAppJWT() (string, error) {
 
     sig, err := rsa.SignPKCS1v15(rand.Reader, s.privateKey, crypto.SHA256, digest)
     if err != nil {
+        s.logger.Printf("JWT signing failed: %v", err)
         return "", fmt.Errorf("failed to sign jwt: %w", err)
     }
     signed := unsigned + "." + base64.RawURLEncoding.EncodeToString(sig)
+    s.logger.Printf("JWT created successfully for App ID: %d", s.appID)
     return signed, nil
 }
 
