@@ -2,11 +2,13 @@ package main
 
 import (
     "context"
+    "encoding/base64"
     "flag"
     "fmt"
     "log"
     "net/http"
     "os"
+    "strconv"
     "strings"
     "time"
 
@@ -67,10 +69,38 @@ func main() {
     )
     flag.Parse()
 
-    ts, err := ghmcp.NewEnvTokenStoreFromEnv(*tokenMapEnv)
+    envStore, err := ghmcp.NewEnvTokenStoreFromEnv(*tokenMapEnv)
     if err != nil {
         fmt.Fprintf(os.Stderr, "failed to load token map from env %s: %v\n", *tokenMapEnv, err)
         os.Exit(2)
+    }
+
+    // If GitHub App credentials are present, prefer InstallationTokenStore which
+    // will mint short-lived installation tokens for the mapped installation IDs.
+    var ts ghmcp.TokenStore
+    appIDStr := os.Getenv("GITHUB_APP_ID")
+    pkb64 := os.Getenv("GITHUB_APP_PRIVATE_KEY_B64")
+    if appIDStr != "" && pkb64 != "" {
+        appID, err := strconv.ParseInt(appIDStr, 10, 64)
+        if err != nil {
+            fmt.Fprintf(os.Stderr, "invalid GITHUB_APP_ID: %v\n", err)
+            os.Exit(2)
+        }
+        pkBytes, err := base64.StdEncoding.DecodeString(pkb64)
+        if err != nil {
+            // try raw PEM
+            pkBytes = []byte(pkb64)
+        }
+        mapping := envStore.Mapping()
+        apiBase := "https://api.github.com/"
+        instStore, err := ghmcp.NewInstallationTokenStore(appID, pkBytes, mapping, apiBase)
+        if err != nil {
+            fmt.Fprintf(os.Stderr, "failed to initialize installation token store: %v\n", err)
+            os.Exit(2)
+        }
+        ts = instStore
+    } else {
+        ts = envStore
     }
 
     // Create server with no global token (per-connection tokens expected)
