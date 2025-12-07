@@ -62,6 +62,11 @@ type MCPServerConfig struct {
 	Logger *slog.Logger
 	// RepoAccessTTL overrides the default TTL for repository access cache entries.
 	RepoAccessTTL *time.Duration
+	// TokenStore provides per-MCP-token -> GitHub token mappings. If set,
+	// NewMCPServer will create GitHub clients based on the token found in the
+	// request context (see ContextWithGitHubToken helper). This enables
+	// streamable-HTTP or other transports to authenticate per-connection.
+	TokenStore TokenStore
 }
 
 func NewMCPServer(cfg MCPServerConfig) (*mcp.Server, error) {
@@ -124,12 +129,36 @@ func NewMCPServer(cfg MCPServerConfig) (*mcp.Server, error) {
 	// Generate instructions based on enabled toolsets
 	instructions := github.GenerateInstructions(enabledToolsets)
 
-	getClient := func(_ context.Context) (*gogithub.Client, error) {
-		return restClient, nil // closing over client
+	// getClient/getGQLClient/getRawClient are closures that create clients
+	// based on the GitHub token present in the context (if any). This allows
+	// per-request credentials (resolved from MCP API key) when TokenStore is
+	// provided and the transport inserts the mapped GitHub token into the
+	// request context via ContextWithGitHubToken.
+	getClient := func(ctx context.Context) (*gogithub.Client, error) {
+		// If a per-request GitHub token is present in context, create a new
+		// client using that token. Otherwise, return the default restClient.
+		if t, ok := GitHubTokenFromContext(ctx); ok && t != "" {
+			c := gogithub.NewClient(nil).WithAuthToken(t)
+			c.UserAgent = restClient.UserAgent
+			c.BaseURL = restClient.BaseURL
+			c.UploadURL = restClient.UploadURL
+			return c, nil
+		}
+		return restClient, nil // closing over default client
 	}
 
-	getGQLClient := func(_ context.Context) (*githubv4.Client, error) {
-		return gqlClient, nil // closing over client
+	getGQLClient := func(ctx context.Context) (*githubv4.Client, error) {
+		if t, ok := GitHubTokenFromContext(ctx); ok && t != "" {
+			// create a new http.Client with bearer auth
+			gqlHTTPClientPer := &http.Client{
+				Transport: &bearerAuthTransport{
+					transport: http.DefaultTransport,
+					token:     t,
+				},
+			}
+			return githubv4.NewEnterpriseClient(apiHost.graphqlURL.String(), gqlHTTPClientPer), nil
+		}
+		return gqlClient, nil // default
 	}
 
 	getRawClient := func(ctx context.Context) (*raw.Client, error) {
