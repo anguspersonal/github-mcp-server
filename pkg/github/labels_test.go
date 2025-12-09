@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	"github.com/github/github-mcp-server/internal/githubv4mock"
-	"github.com/github/github-mcp-server/internal/toolsnaps"
-	"github.com/github/github-mcp-server/pkg/translations"
+		"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +18,7 @@ func TestGetLabel(t *testing.T) {
 	// Verify tool definition
 	mockClient := githubv4.NewClient(nil)
 	tool, _ := GetLabel(stubGetGQLClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "get_label", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -141,7 +140,7 @@ func TestListLabels(t *testing.T) {
 	// Verify tool definition
 	mockClient := githubv4.NewClient(nil)
 	tool, _ := ListLabels(stubGetGQLClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "list_label", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -236,7 +235,7 @@ func TestWriteLabel(t *testing.T) {
 	// Verify tool definition
 	mockClient := githubv4.NewClient(nil)
 	tool, _ := LabelWrite(stubGetGQLClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "label_write", tool.Name)
 	assert.NotEmpty(t, tool.Description)

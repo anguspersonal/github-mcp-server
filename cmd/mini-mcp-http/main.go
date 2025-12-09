@@ -2,7 +2,6 @@ package main
 
 import (
     "context"
-    "encoding/base64"
     "encoding/json"
     "flag"
     "fmt"
@@ -10,7 +9,6 @@ import (
     "log"
     "net/http"
     "os"
-    "strconv"
     "strings"
     "time"
 
@@ -113,59 +111,45 @@ func main() {
 
     logger := NewLogger(os.Stdout)
 
-    // Determine listen address: flag > PORT env var > default :8080
-    addr := *listenAddr
-    if addr == "" {
-        port := os.Getenv("PORT")
-        if port == "" {
-            port = "8080"
-        }
-        addr = ":" + port
-    }
-    *listenAddr = addr
-
-    logger.Info("server", "Starting mini-mcp-http server", map[string]interface{}{
-        "version":     *version,
-        "listen_addr": addr,
-        "host":        *host,
-    })
-
-    envStore, err := ghmcp.NewEnvTokenStoreFromEnv(*tokenMapEnv)
+    // Validate configuration
+    config, err := ValidateConfig(*listenAddr, *host, *version, *tokenMapEnv)
     if err != nil {
-        logger.Error("config", "Failed to load token map from environment", map[string]interface{}{
-            "env_var": *tokenMapEnv,
-            "error":   err.Error(),
+        logger.Error("config", "Configuration validation failed", map[string]interface{}{
+            "error": err.Error(),
         })
-        fmt.Fprintf(os.Stderr, "failed to load token map from env %s: %v\n", *tokenMapEnv, err)
+        fmt.Fprintf(os.Stderr, "Configuration validation failed: %v\n", err)
         os.Exit(2)
     }
 
-    // If GitHub App credentials are present, prefer InstallationTokenStore which
-    // will mint short-lived installation tokens for the mapped installation IDs.
+    // Determine listen address: flag > PORT env var > default :8080
+    addr := config.ListenAddr
+    if addr == "" {
+        addr = ":" + config.Port
+    }
+
+    logger.Info("server", "Starting mini-mcp-http server", map[string]interface{}{
+        "version":     config.Version,
+        "listen_addr": addr,
+        "host":        config.Host,
+        "github_host": config.GitHubHost,
+    })
+
+    // Create token store based on configuration
     var ts ghmcp.TokenStore
-    appIDStr := os.Getenv("GITHUB_APP_ID")
-    pkb64 := os.Getenv("GITHUB_APP_PRIVATE_KEY_B64")
-    if appIDStr != "" && pkb64 != "" {
+    if config.GitHubAppID > 0 && len(config.GitHubAppPrivateKey) > 0 {
         logger.Info("config", "GitHub App credentials detected, using InstallationTokenStore", map[string]interface{}{
-            "app_id": appIDStr,
+            "app_id": config.GitHubAppID,
         })
-        appID, err := strconv.ParseInt(appIDStr, 10, 64)
-        if err != nil {
-            logger.Error("config", "Invalid GITHUB_APP_ID", map[string]interface{}{
-                "app_id": appIDStr,
-                "error":  err.Error(),
-            })
-            fmt.Fprintf(os.Stderr, "invalid GITHUB_APP_ID: %v\n", err)
-            os.Exit(2)
-        }
-        pkBytes, err := base64.StdEncoding.DecodeString(pkb64)
-        if err != nil {
-            // try raw PEM
-            pkBytes = []byte(pkb64)
-        }
-        mapping := envStore.Mapping()
+        
         apiBase := "https://api.github.com/"
-        instStore, err := ghmcp.NewInstallationTokenStore(appID, pkBytes, mapping, apiBase)
+        if config.GitHubHost != "" && config.GitHubHost != "github.com" {
+            apiBase = "https://" + strings.TrimPrefix(config.GitHubHost, "https://")
+            if !strings.HasSuffix(apiBase, "/") {
+                apiBase += "/"
+            }
+        }
+        
+        instStore, err := ghmcp.NewInstallationTokenStore(config.GitHubAppID, config.GitHubAppPrivateKey, config.TokenMapping, apiBase)
         if err != nil {
             logger.Error("config", "Failed to initialize installation token store", map[string]interface{}{
                 "error": err.Error(),
@@ -177,6 +161,21 @@ func main() {
         logger.Info("config", "InstallationTokenStore initialized successfully", nil)
     } else {
         logger.Info("config", "Using EnvTokenStore for token resolution", nil)
+        envStore := &ghmcp.EnvTokenStore{}
+        // Use the validated token mapping from config
+        ts = &ghmcp.EnvTokenStore{}
+        // We need to create a proper EnvTokenStore with the mapping
+        // Since we already validated the mapping, we can use it directly
+        envStore, err := ghmcp.NewEnvTokenStoreFromEnv(config.TokenMapEnv)
+        if err != nil {
+            // This should not happen since we already validated, but handle it anyway
+            logger.Error("config", "Failed to load token map from environment", map[string]interface{}{
+                "env_var": config.TokenMapEnv,
+                "error":   err.Error(),
+            })
+            fmt.Fprintf(os.Stderr, "failed to load token map from env %s: %v\n", config.TokenMapEnv, err)
+            os.Exit(2)
+        }
         ts = envStore
     }
 

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 
@@ -40,7 +42,8 @@ func TestProperty_ConcurrentRequestHandling(t *testing.T) {
 		Host:       "",
 		Token:      "",
 		TokenStore: envStore,
-		Logger:     nil,
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+Translator: func(key, defaultValue string) string { return defaultValue },
 	}
 
 	ghServer, err := ghmcp.NewMCPServer(cfg)
@@ -52,6 +55,10 @@ func TestProperty_ConcurrentRequestHandling(t *testing.T) {
 		func(tokens []string, concurrency int) bool {
 			if concurrency < 1 || concurrency > 10 {
 				return true // Skip invalid concurrency values
+			}
+			
+			if len(tokens) == 0 {
+				return true // Skip empty token arrays
 			}
 
 			// Track which GitHub token was used for each request
@@ -190,7 +197,8 @@ func TestConcurrentRequestsWithDifferentTokens(t *testing.T) {
 		Host:       "",
 		Token:      "",
 		TokenStore: envStore,
-		Logger:     nil,
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+Translator: func(key, defaultValue string) string { return defaultValue },
 	}
 
 	ghServer, err := ghmcp.NewMCPServer(cfg)
@@ -327,7 +335,8 @@ func TestConcurrentRequestsNoInterference(t *testing.T) {
 		Host:       "",
 		Token:      "",
 		TokenStore: envStore,
-		Logger:     nil,
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+Translator: func(key, defaultValue string) string { return defaultValue },
 	}
 
 	ghServer, err := ghmcp.NewMCPServer(cfg)

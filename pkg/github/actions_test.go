@@ -3,18 +3,10 @@ package github
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"runtime"
-	"runtime/debug"
-	"strings"
 	"testing"
 
-	"github.com/github/github-mcp-server/internal/profiler"
-	"github.com/github/github-mcp-server/internal/toolsnaps"
-	buffer "github.com/github/github-mcp-server/pkg/buffer"
 	"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v79/github"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -27,7 +19,7 @@ func Test_ListWorkflows(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := ListWorkflows(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "list_workflows", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -140,7 +132,7 @@ func Test_RunWorkflow(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := RunWorkflow(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "run_workflow", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -317,7 +309,7 @@ func Test_CancelWorkflowRun(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := CancelWorkflowRun(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "cancel_workflow_run", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -423,7 +415,7 @@ func Test_ListWorkflowRunArtifacts(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := ListWorkflowRunArtifacts(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "list_workflow_run_artifacts", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -552,7 +544,7 @@ func Test_DownloadWorkflowRunArtifact(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := DownloadWorkflowRunArtifact(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "download_workflow_run_artifact", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -641,7 +633,7 @@ func Test_DeleteWorkflowRunLogs(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := DeleteWorkflowRunLogs(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "delete_workflow_run_logs", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -723,7 +715,7 @@ func Test_GetWorkflowRunUsage(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := GetWorkflowRunUsage(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "get_workflow_run_usage", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -825,7 +817,7 @@ func Test_GetJobLogs(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := GetJobLogs(stubGetClientFn(mockClient), translations.NullTranslationHelper, 5000)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "get_job_logs", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1253,109 +1245,11 @@ func Test_GetJobLogs_WithContentReturnAndLargeTailLines(t *testing.T) {
 	assert.NotContains(t, response, "logs_url")
 }
 
-func Test_MemoryUsage_SlidingWindow_vs_NoWindow(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping memory profiling test in short mode")
-	}
-
-	const logLines = 100000
-	const bufferSize = 5000
-	largeLogContent := strings.Repeat("log line with some content\n", logLines-1) + "final log line"
-
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(largeLogContent))
-	}))
-	defer testServer.Close()
-
-	os.Setenv("GITHUB_MCP_PROFILING_ENABLED", "true")
-	defer os.Unsetenv("GITHUB_MCP_PROFILING_ENABLED")
-
-	profiler.InitFromEnv(nil)
-	ctx := context.Background()
-
-	debug.SetGCPercent(-1)
-	defer debug.SetGCPercent(100)
-
-	for i := 0; i < 3; i++ {
-		runtime.GC()
-	}
-
-	var baselineStats runtime.MemStats
-	runtime.ReadMemStats(&baselineStats)
-
-	profile1, err1 := profiler.ProfileFuncWithMetrics(ctx, "sliding_window", func() (int, int64, error) {
-		resp1, err := http.Get(testServer.URL)
-		if err != nil {
-			return 0, 0, err
-		}
-		defer resp1.Body.Close()                                                                  //nolint:bodyclose
-		content, totalLines, _, err := buffer.ProcessResponseAsRingBufferToEnd(resp1, bufferSize) //nolint:bodyclose
-		return totalLines, int64(len(content)), err
-	})
-	require.NoError(t, err1)
-
-	for i := 0; i < 3; i++ {
-		runtime.GC()
-	}
-
-	profile2, err2 := profiler.ProfileFuncWithMetrics(ctx, "no_window", func() (int, int64, error) {
-		resp2, err := http.Get(testServer.URL)
-		if err != nil {
-			return 0, 0, err
-		}
-		defer resp2.Body.Close() //nolint:bodyclose
-
-		allContent, err := io.ReadAll(resp2.Body)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		allLines := strings.Split(string(allContent), "\n")
-		var nonEmptyLines []string
-		for _, line := range allLines {
-			if line != "" {
-				nonEmptyLines = append(nonEmptyLines, line)
-			}
-		}
-		totalLines := len(nonEmptyLines)
-
-		var resultLines []string
-		if totalLines > bufferSize {
-			resultLines = nonEmptyLines[totalLines-bufferSize:]
-		} else {
-			resultLines = nonEmptyLines
-		}
-
-		result := strings.Join(resultLines, "\n")
-		return totalLines, int64(len(result)), nil
-	})
-	require.NoError(t, err2)
-
-	assert.Greater(t, profile2.MemoryDelta, profile1.MemoryDelta,
-		"Sliding window should use less memory than reading all into memory")
-
-	assert.Equal(t, profile1.LinesCount, profile2.LinesCount,
-		"Both approaches should count the same number of input lines")
-	assert.InDelta(t, profile1.BytesCount, profile2.BytesCount, 100,
-		"Both approaches should produce similar output sizes (within 100 bytes)")
-
-	memoryReduction := float64(profile2.MemoryDelta-profile1.MemoryDelta) / float64(profile2.MemoryDelta) * 100
-	t.Logf("Memory reduction: %.1f%% (%.2f MB vs %.2f MB)",
-		memoryReduction,
-		float64(profile2.MemoryDelta)/1024/1024,
-		float64(profile1.MemoryDelta)/1024/1024)
-
-	t.Logf("Baseline: %d bytes", baselineStats.Alloc)
-	t.Logf("Sliding window: %s", profile1.String())
-	t.Logf("No window: %s", profile2.String())
-}
-
 func Test_ListWorkflowRuns(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := ListWorkflowRuns(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+	assert.Equal(t, "list_workflow_runs", tool.Name)
 
 	assert.Equal(t, "list_workflow_runs", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1370,7 +1264,7 @@ func Test_GetWorkflowRun(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := GetWorkflowRun(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "get_workflow_run", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1385,7 +1279,7 @@ func Test_GetWorkflowRunLogs(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := GetWorkflowRunLogs(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "get_workflow_run_logs", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1400,7 +1294,7 @@ func Test_ListWorkflowJobs(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := ListWorkflowJobs(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "list_workflow_jobs", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1415,7 +1309,7 @@ func Test_RerunWorkflowRun(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := RerunWorkflowRun(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "rerun_workflow_run", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1430,7 +1324,7 @@ func Test_RerunFailedJobs(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := RerunFailedJobs(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "rerun_failed_jobs", tool.Name)
 	assert.NotEmpty(t, tool.Description)

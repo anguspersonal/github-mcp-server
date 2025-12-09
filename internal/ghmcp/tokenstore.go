@@ -49,6 +49,11 @@ func NewEnvTokenStoreFromEnv(envVar string) (*EnvTokenStore, error) {
     return &EnvTokenStore{mapping: m}, nil
 }
 
+// NewEnvTokenStore creates an EnvTokenStore from a map directly (useful for testing).
+func NewEnvTokenStore(mapping map[string]string) *EnvTokenStore {
+    return &EnvTokenStore{mapping: mapping}
+}
+
 func (e *EnvTokenStore) GetGitHubToken(mcpToken string) (string, bool) {
     t, ok := e.mapping[mcpToken]
     return t, ok

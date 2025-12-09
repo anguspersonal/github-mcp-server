@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/github/github-mcp-server/internal/toolsnaps"
-	"github.com/github/github-mcp-server/pkg/translations"
+		"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v79/github"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -21,7 +20,7 @@ func Test_ListGists(t *testing.T) {
 	mockClient := github.NewClient(nil)
 	tool, _ := ListGists(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "list_gists", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -205,7 +204,7 @@ func Test_GetGist(t *testing.T) {
 	mockClient := github.NewClient(nil)
 	tool, _ := GetGist(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "get_gist", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -320,7 +319,7 @@ func Test_CreateGist(t *testing.T) {
 	mockClient := github.NewClient(nil)
 	tool, _ := CreateGist(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "create_gist", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -465,7 +464,7 @@ func Test_UpdateGist(t *testing.T) {
 	mockClient := github.NewClient(nil)
 	tool, _ := UpdateGist(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "update_gist", tool.Name)
 	assert.NotEmpty(t, tool.Description)

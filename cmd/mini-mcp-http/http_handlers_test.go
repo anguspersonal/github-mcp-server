@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/github/github-mcp-server/internal/ghmcp"
@@ -88,7 +90,8 @@ func TestAuthorizationHeaderValidation(t *testing.T) {
 		Host:       "",
 		Token:      "",
 		TokenStore: envStore,
-		Logger:     nil,
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+Translator: func(key, defaultValue string) string { return defaultValue },
 	}
 
 	ghServer, err := ghmcp.NewMCPServer(cfg)
@@ -340,10 +343,7 @@ func TestHTTPMethodValidation(t *testing.T) {
 					return
 				}
 
-				ghToken := ""
-				if t, ok := envStore.GetGitHubToken(mcpToken); ok {
-					ghToken = t
-				} else {
+				if _, ok := envStore.GetGitHubToken(mcpToken); !ok {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
 				}
@@ -399,7 +399,8 @@ func TestResponseHeaderConfiguration(t *testing.T) {
 		Host:       "",
 		Token:      "",
 		TokenStore: envStore,
-		Logger:     nil,
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+Translator: func(key, defaultValue string) string { return defaultValue },
 	}
 
 	ghServer, err := ghmcp.NewMCPServer(cfg)

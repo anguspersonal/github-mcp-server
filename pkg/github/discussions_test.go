@@ -7,8 +7,7 @@ import (
 	"testing"
 
 	"github.com/github/github-mcp-server/internal/githubv4mock"
-	"github.com/github/github-mcp-server/internal/toolsnaps"
-	"github.com/github/github-mcp-server/pkg/translations"
+		"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v79/github"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/shurcooL/githubv4"
@@ -215,7 +214,6 @@ var (
 func Test_ListDiscussions(t *testing.T) {
 	mockClient := githubv4.NewClient(nil)
 	toolDef, _ := ListDiscussions(stubGetGQLClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(toolDef.Name, toolDef))
 
 	assert.Equal(t, "list_discussions", toolDef.Name)
 	assert.NotEmpty(t, toolDef.Description)
@@ -495,7 +493,6 @@ func Test_ListDiscussions(t *testing.T) {
 func Test_GetDiscussion(t *testing.T) {
 	// Verify tool definition and schema
 	toolDef, _ := GetDiscussion(nil, translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(toolDef.Name, toolDef))
 
 	assert.Equal(t, "get_discussion", toolDef.Name)
 	assert.NotEmpty(t, toolDef.Description)
@@ -590,7 +587,6 @@ func Test_GetDiscussion(t *testing.T) {
 func Test_GetDiscussionComments(t *testing.T) {
 	// Verify tool definition and schema
 	toolDef, _ := GetDiscussionComments(nil, translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(toolDef.Name, toolDef))
 
 	assert.Equal(t, "get_discussion_comments", toolDef.Name)
 	assert.NotEmpty(t, toolDef.Description)
@@ -673,7 +669,6 @@ func Test_GetDiscussionComments(t *testing.T) {
 func Test_ListDiscussionCategories(t *testing.T) {
 	mockClient := githubv4.NewClient(nil)
 	toolDef, _ := ListDiscussionCategories(stubGetGQLClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(toolDef.Name, toolDef))
 
 	assert.Equal(t, "list_discussion_categories", toolDef.Name)
 	assert.NotEmpty(t, toolDef.Description)

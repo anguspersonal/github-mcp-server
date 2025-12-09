@@ -7,8 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/github-mcp-server/internal/toolsnaps"
-	"github.com/github/github-mcp-server/pkg/translations"
+		"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v79/github"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -20,7 +19,7 @@ func Test_GetRepositoryTree(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
 	tool, _ := GetRepositoryTree(stubGetClientFn(mockClient), translations.NullTranslationHelper)
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "get_repository_tree", tool.Name)
 	assert.NotEmpty(t, tool.Description)

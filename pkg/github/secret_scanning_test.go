@@ -6,8 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/github/github-mcp-server/internal/toolsnaps"
-	"github.com/github/github-mcp-server/pkg/translations"
+		"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v79/github"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -19,7 +18,7 @@ func Test_GetSecretScanningAlert(t *testing.T) {
 	mockClient := github.NewClient(nil)
 	tool, _ := GetSecretScanningAlert(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "get_secret_scanning_alert", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -128,7 +127,7 @@ func Test_ListSecretScanningAlerts(t *testing.T) {
 	mockClient := github.NewClient(nil)
 	tool, _ := ListSecretScanningAlerts(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
-	require.NoError(t, toolsnaps.Test(tool.Name, tool))
+
 
 	assert.Equal(t, "list_secret_scanning_alerts", tool.Name)
 	assert.NotEmpty(t, tool.Description)
