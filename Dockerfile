@@ -11,8 +11,14 @@ WORKDIR /build
 # Note: Railway requires hardcoding the Service ID - build arguments don't work for cache mounts
 # See: https://station.railway.com/questions/error-cache-mount-id-is-not-prefixed-wi-12a50b55
 # Format: id=s/<SERVICE_ID>-<cache-name>
-RUN --mount=type=cache,id=s/266e71f8-400f-4d39-aa57-515a3ff2f083D-apk-cache,target=/var/cache/apk \
+RUN --mount=type=cache,id=s/266e71f8-400f-4d39-aa57-515a3ff2f083-apk-cache,target=/var/cache/apk \
     apk add git
+
+# Copy source code into build context
+COPY go.mod go.sum ./
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY pkg/ ./pkg/
 
 # Build mini-mcp-http only
 # Railway requires cache mount IDs to be prefixed with s/<SERVICE_ID>-
@@ -20,7 +26,6 @@ RUN --mount=type=cache,id=s/266e71f8-400f-4d39-aa57-515a3ff2f083D-apk-cache,targ
 # Format: id=s/<SERVICE_ID>-<cache-name>
 RUN --mount=type=cache,id=s/266e71f8-400f-4d39-aa57-515a3ff2f083-go-mod,target=/go/pkg/mod \
     --mount=type=cache,id=s/266e71f8-400f-4d39-aa57-515a3ff2f083-go-build,target=/root/.cache/go-build \
-    --mount=type=bind,target=. \
     CGO_ENABLED=0 go build \
     -ldflags="-s -w -X main.version=${VERSION}" \
     -o /bin/mini-mcp-http \
