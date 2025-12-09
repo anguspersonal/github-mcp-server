@@ -78,15 +78,21 @@ This guide covers common issues you may encounter when deploying and using the G
       - Look for "Copy Service ID" or "Copy Workspace ID" (Railway may show either)
       - Copy the ID
    
-   b. Set as environment variable in Railway:
-      - Go to Railway dashboard → Your service → Variables tab
+   b. Set as a SERVICE variable (not shared):
+      - Go to Railway dashboard → Your service → **Variables** tab
+      - **Important**: Use the service's Variables tab, NOT Project Settings → Shared Variables
       - Click "New Variable"
       - Name: `RAILWAY_SERVICE_ID`
       - Value: Your Service ID (paste the one you copied)
       - Click "Add"
       - Railway will automatically redeploy with the new variable
    
-   **How it works**: Railway makes environment variables available as Docker build arguments (`ARG`). The Dockerfile uses `ARG RAILWAY_SERVICE_ID` which Railway automatically provides during the build.
+   **Why Service Variable?**: 
+   - **Service Variables** (in service → Variables tab): Available during Docker builds and runtime
+   - **Shared Variables** (in Project Settings): Primarily for runtime sharing, may not be available during builds
+   - **Railway-Provided Variables**: Automatically injected by Railway (like `RAILWAY_PUBLIC_DOMAIN`)
+   
+   **How it works**: Railway makes service environment variables available during Docker builds. The Dockerfile uses `ARG RAILWAY_SERVICE_ID` which Railway passes as a build argument.
    
    **Note**: If you see "Copy Workspace ID" instead of "Copy Service ID", that's fine - for single-service projects, the Workspace ID is the same as the Service ID.
 

@@ -145,14 +145,17 @@ You'll need these values for Railway configuration:
       - If you see "Copy Workspace ID", that's the same as Service ID for single-service projects
       - Copy the ID (it looks like: `abc123-def456-ghi789-...`)
    
-   b. **Set as environment variable in Railway**:
-      - Go to Railway dashboard → Your service → Variables tab
+   b. **Set as a SERVICE variable (not shared)**:
+      - Go to Railway dashboard → Your service → **Variables** tab (NOT Project Settings)
       - Click "New Variable"
       - Name: `RAILWAY_SERVICE_ID`
       - Value: Paste your Service ID (the one you copied)
       - Click "Add"
+      - **Important**: Set this as a **Service Variable**, not a Shared Variable
    
-   **Note**: Railway makes environment variables available as build arguments (`ARG`) during Docker builds, so the Dockerfile will automatically use this value.
+   **Why Service Variable?**: Service variables are available during Docker builds. Shared variables are primarily for runtime sharing across services.
+   
+   **Note**: Railway makes service environment variables available during Docker builds, and the Dockerfile uses `ARG RAILWAY_SERVICE_ID` to access it.
 
 4. **Railway will automatically**:
    - Detect the `Dockerfile`

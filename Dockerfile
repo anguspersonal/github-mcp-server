@@ -10,13 +10,13 @@ WORKDIR /build
 # Install git for version info
 # Railway requires cache mount IDs to be prefixed with s/<SERVICE_ID>-
 # If RAILWAY_SERVICE_ID is not set, cache mounts will still work but won't be shared across services
-RUN --mount=type=cache,id=s/${RAILWAY_SERVICE_ID}-apk-cache,target=/var/cache/apk \
+RUN --mount=type=cache,id=s/$266e71f8-400f-4d39-aa57-515a3ff2f083-apk-cache,target=/var/cache/apk \
     apk add git
 
 # Build mini-mcp-http only
 # Railway requires cache mount IDs to be prefixed with s/<SERVICE_ID>-
-RUN --mount=type=cache,id=s/${RAILWAY_SERVICE_ID}-go-mod,target=/go/pkg/mod \
-    --mount=type=cache,id=s/${RAILWAY_SERVICE_ID}-go-build,target=/root/.cache/go-build \
+RUN --mount=type=cache,id=s/$266e71f8-400f-4d39-aa57-515a3ff2f083-go-mod,target=/go/pkg/mod \
+    --mount=type=cache,id=s/$266e71f8-400f-4d39-aa57-515a3ff2f083-go-build,target=/root/.cache/go-build \
     --mount=type=bind,target=. \
     CGO_ENABLED=0 go build \
     -ldflags="-s -w -X main.version=${VERSION}" \
