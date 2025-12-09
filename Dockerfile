@@ -29,7 +29,8 @@ RUN --mount=type=cache,id=s/266e71f8-400f-4d39-aa57-515a3ff2f083-go-mod,target=/
     CGO_ENABLED=0 go build \
     -ldflags="-s -w -X main.version=${VERSION}" \
     -o /bin/mini-mcp-http \
-    cmd/mini-mcp-http/main.go
+    ./cmd/mini-mcp-http
+
 
 # Runtime stage
 FROM gcr.io/distroless/base-debian12
