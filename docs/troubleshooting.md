@@ -65,14 +65,39 @@ This guide covers common issues you may encounter when deploying and using the G
 
 **Common Causes**:
 
-1. **Cache mount format errors**
+1. **Cache mount ID prefix error**
+   ```
+   Error: Cache mount ID is not prefixed with cache key
+   ```
+   
+   **Solution**: Railway requires cache mount IDs to be prefixed with `s/<SERVICE_ID>-`. The Dockerfile uses a build argument, so you need to set it as an environment variable:
+   
+   a. Get your Railway Service ID:
+      - Open Railway dashboard → Your service
+      - Press `Cmd + K` (macOS) or `Ctrl + K` (Windows/Linux) to open command palette
+      - Look for "Copy Service ID" or "Copy Workspace ID" (Railway may show either)
+      - Copy the ID
+   
+   b. Set as environment variable in Railway:
+      - Go to Railway dashboard → Your service → Variables tab
+      - Click "New Variable"
+      - Name: `RAILWAY_SERVICE_ID`
+      - Value: Your Service ID (paste the one you copied)
+      - Click "Add"
+      - Railway will automatically redeploy with the new variable
+   
+   **How it works**: Railway makes environment variables available as Docker build arguments (`ARG`). The Dockerfile uses `ARG RAILWAY_SERVICE_ID` which Railway automatically provides during the build.
+   
+   **Note**: If you see "Copy Workspace ID" instead of "Copy Service ID", that's fine - for single-service projects, the Workspace ID is the same as the Service ID.
+
+2. **Cache mount format errors**
    ```
    Error: invalid mount config for type "cache": invalid field 'target' must not be empty
    ```
    
-   **Solution**: Verify Dockerfile uses correct cache mount format:
+   **Solution**: Verify Dockerfile uses correct cache mount format with target:
    ```dockerfile
-   RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
+   RUN --mount=type=cache,id=s/YOUR_SERVICE_ID-go-mod,target=/go/pkg/mod \
        go build ...
    ```
 

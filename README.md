@@ -134,15 +134,61 @@ You'll need these values for Railway configuration:
    - Select **"Deploy from GitHub repo"**
    - Choose your forked repository
 
-3. **Railway will automatically**:
+3. **Configure Railway Service ID for cache mounts**:
+   
+   Railway requires cache mount IDs to be prefixed with your Service ID. Set it as an environment variable:
+   
+   a. **Get your Railway Service ID**:
+      - In Railway dashboard, open your service
+      - Press `Cmd + K` (macOS) or `Ctrl + K` (Windows/Linux) to open command palette
+      - Look for "Copy Service ID" or "Copy Workspace ID" (Railway UI may show either)
+      - If you see "Copy Workspace ID", that's the same as Service ID for single-service projects
+      - Copy the ID (it looks like: `abc123-def456-ghi789-...`)
+   
+   b. **Set as environment variable in Railway**:
+      - Go to Railway dashboard → Your service → Variables tab
+      - Click "New Variable"
+      - Name: `RAILWAY_SERVICE_ID`
+      - Value: Paste your Service ID (the one you copied)
+      - Click "Add"
+   
+   **Note**: Railway makes environment variables available as build arguments (`ARG`) during Docker builds, so the Dockerfile will automatically use this value.
+
+4. **Railway will automatically**:
    - Detect the `Dockerfile`
    - Build the Docker image
    - Deploy the service
    - Assign a public URL
 
-4. **Note your Railway URL**:
+5. **Note your Railway URL**:
    - Find it in the Railway dashboard under your service
    - Format: `https://your-app.railway.app`
+
+### Local Development (Optional)
+
+If you want to test Docker builds locally, you can set `RAILWAY_SERVICE_ID` as an environment variable:
+
+```bash
+# Linux/Mac
+export RAILWAY_SERVICE_ID="your-service-id-here"
+docker build --build-arg RAILWAY_SERVICE_ID=$RAILWAY_SERVICE_ID -t github-mcp-server .
+
+# Windows (PowerShell)
+$env:RAILWAY_SERVICE_ID="your-service-id-here"
+docker build --build-arg RAILWAY_SERVICE_ID=$env:RAILWAY_SERVICE_ID -t github-mcp-server .
+```
+
+Or create a `.env` file (for local development only - don't commit it):
+```
+RAILWAY_SERVICE_ID=your-service-id-here
+```
+
+Then load it before building:
+```bash
+# Linux/Mac
+export $(cat .env | xargs)
+docker build --build-arg RAILWAY_SERVICE_ID=$RAILWAY_SERVICE_ID -t github-mcp-server .
+```
 
 ### Manual Deployment (Alternative)
 

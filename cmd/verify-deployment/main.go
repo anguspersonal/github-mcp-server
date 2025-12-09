@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -108,6 +109,36 @@ func main() {
 	fmt.Println("========================================")
 	fmt.Println("✅ All deployment verification tests passed!")
 	fmt.Println("========================================")
+}
+
+// testServiceStatus verifies the Railway service is reachable via HTTPS
+func testServiceStatus(ctx context.Context, serviceURL string) error {
+	fmt.Printf("  Checking service reachability: %s\n", serviceURL)
+
+	// Verify URL uses HTTPS
+	if !strings.HasPrefix(serviceURL, "https://") {
+		return fmt.Errorf("service URL must use HTTPS (Railway provides HTTPS URLs)")
+	}
+
+	// Try to connect to the root endpoint or health endpoint
+	// This verifies the service is deployed and accessible
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, serviceURL+"/health", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Railway service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Any response (even 404) means the service is reachable
+	// We'll do more detailed checks in the health check test
+	fmt.Printf("  Service is reachable (status: %d)\n", resp.StatusCode)
+	fmt.Printf("  Using HTTPS: ✓\n")
+
+	return nil
 }
 
 // testHealthCheck verifies the health check endpoint returns 200 OK

@@ -426,7 +426,7 @@
   - _Requirements: 1.1, 1.2, 1.3_
 
 
-- [-] 11.1 Implement deployment verification script
+- [x] 11.1 Implement deployment verification script
 
 
 
@@ -437,7 +437,7 @@
   - Test GitHub API call through MCP
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 11.2 Write property test for service availability
+- [x] 11.2 Write property test for service availability
 
 
   - **Property 1: Service availability on Railway**
